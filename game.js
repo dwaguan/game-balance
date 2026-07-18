@@ -63,7 +63,7 @@
     // If they stay stalled through the charge, they explode apart. Separating
     // or speeding up bleeds the charge. Tuned to trigger readily so stalls
     // don't linger.
-    explosionProx: 0.62,   // charge starts when gap below this (m) — ~1.5x ball diameter
+    explosionProx: 0.9,    // charge starts when gap below this (m) — covers contact-buzz
     explosionRel: 1.2,     // "slow" if |relative v| below this (m/s)
     explosionCharge: 0.45, // s of sustained stall to detonate
     explosionBleed: 2.5,   // charge lost per second when not stalling
@@ -402,12 +402,14 @@
       const gap = Math.abs(c.s - a.s);
       const rel = c.v - a.v;
       const sign = c.s >= a.s ? 1 : -1;
-      const closing = (sign > 0 && rel < 0) || (sign < 0 && rel > 0);
       const slow = Math.abs(rel) < CFG.explosionRel;
       const near = gap < CFG.explosionProx;
 
-      // Charge builds while close+closing+slow (a stall); bleeds otherwise.
-      if (near && closing && slow) {
+      // Charge builds while close+slow (a contact-buzz stall — they're touching
+      // and trading rapid swaps, not meaningfully separating); bleeds otherwise.
+      // (We don't require "closing": once in contact they're not closing, they're
+      // buzzing — and that's exactly the stall we want to break.)
+      if (near && slow) {
         buzz += dt / CFG.explosionCharge;
       } else {
         buzz = Math.max(0, buzz - CFG.explosionBleed * dt);
