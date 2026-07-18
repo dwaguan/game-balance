@@ -32,3 +32,11 @@
             - tilt control
     - debug:
         - resolved: P1 auto moves to the higher bar if no actions (anti-physics)
+## improvement ideas
+    - make it 3D: plate instead of bar
+    - in current version, two experienced players often end up 在中心慢慢对撞，速度起不来，等到bar倾斜以后靠边的也没有足够加速度上来，自然掉下去输了，趣味性不够：
+        - enlarge map: longer bar, so that one can wait to tilt the bar to affect the other
+        - when the bar is tilted, player often hard to climb due to the drag of gravity, how about increase the default a>g
+        - to avoid two balls are too close and both have no/low velocity, detect if two are too close and still going towards each other, explode them away (like energy stored exploded)
+        - add some small traps that can only pass through with large enough velocity
+        

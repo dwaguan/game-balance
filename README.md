@@ -35,15 +35,20 @@ just open `index.html`.
 
 - The bar is a uniform rod pivoting about its center. Its angular acceleration
   comes from the **torque** of each ball's weight:
-  `τ = −m·g·s·cos(θ)` summed over balls, divided by the rod's moment of inertia
-  `I = (1/12)·M·L²`.
+  `τ = +m·g·s·cos(θ)` summed over balls, divided by the rod's moment of inertia
+  `I = (1/12)·M·L²`. (Canvas y-down: θ > 0 = right tip down.)
 - Bar mass `M` decays exponentially from `60 → 4` (half-life ~35s), so `I`
   shrinks and the same torque produces larger angular acceleration — the
   intended difficulty ramp.
 - Balls slide along the bar under gravity's tangential component
-  `aₜ = −g·sin(θ)` plus player input, with viscous friction and a speed cap.
+  `aₜ = +g·sin(θ)` plus player input, with viscous friction and a speed cap.
+  Player accel (`a ≈ 13 > g`) means you can always climb back from any tilt
+  < 90° — recovery is always possible; mass decay is the match terminator.
 - Ball-ball collisions are **elastic, equal-mass** (velocities swap along the
-  bar), unless one ball is invisible, in which case they phase through.
+  bar), unless one ball is invisible (phase-through) or the "sticky/inelastic"
+  buff is active (velocities average). When two balls close on each other
+  **slowly**, an anti-stall "explosion" kicks them apart so the center can't
+  buzz forever.
 - Integration is **semi-implicit Euler with sub-stepping** (6 sub-steps/frame)
   and a clamped angular velocity, which keeps the sim stable as inertia drops.
 
@@ -55,6 +60,8 @@ just open `index.html`.
 - Optional **skill-box mode**: a longer bar with random power-up boxes — first
   to touch one gets a timed buff (heavier mass, more accel, shorter invis CD,
   or sticky/inelastic collisions)
+- Anti-stall design: player accel > gravity (always recoverable) + stored-energy
+  explosion that kicks slow-closing balls apart
 - Pause / restart, win/lose overlays, English + Chinese (defaults to Chinese)
 - Self-contained: one HTML file plus `style.css` and `game.js`
 
@@ -72,8 +79,8 @@ python -m http.server 8000
 - `index.html` — markup, HUD, controls hint
 - `style.css` — layout and overlays (matches the 2048 aesthetic)
 - `game.js` — physics simulation, rendering, input, and AI
-- `design.md` — original design spec + followups
-- `v1.0/` … `v1.4/` — read-only snapshots of each released version (see below)
+- `design.md` — original design spec
+- `v1.0/` … `v1.5/` — read-only snapshots of each released version (see below)
 
 ## Versions
 
@@ -84,7 +91,8 @@ Each version is a self-contained snapshot you can play by opening that folder's
 - **v1.1** — phone support: touch controls, optimized layout, tilt steering
 - **v1.2** — language toggle (中文 / EN, defaults to Chinese)
 - **v1.3** — physics fix: correct torque/signs, balls slide downhill
-- **v1.4** — skill-box mode: optional power-up pickups + longer bar *(latest)*
+- **v1.4** — skill-box mode: optional power-up pickups + longer bar
+- **v1.5** — anti-stall + recovery: longer bar (both modes), a > g, explosion *(latest)*
 
 ## Future dev (not yet implemented)
 
