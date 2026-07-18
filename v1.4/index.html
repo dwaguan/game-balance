@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <title>balance</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div class="container">
+    <div class="header">
+      <h1>balance</h1>
+      <div class="header-right">
+        <button id="lang-btn" class="lang-btn" aria-label="switch language">EN</button>
+        <div class="scores">
+          <div class="score-box p1">
+            <span class="label">P1</span>
+            <span id="p1-status">ready</span>
+          </div>
+          <div class="score-box p2">
+            <span class="label">P2</span>
+            <span id="p2-status">ready</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="intro">
+      <p class="tagline">Stay on the bar. Push the other off. <b>Gravity</b> does the rest.</p>
+      <button id="new-game" class="btn">New Game</button>
+    </div>
+
+    <div class="stage" id="stage">
+      <canvas id="game" width="720" height="480"></canvas>
+      <!-- overlay (start / pause / win / lose) is injected here by game.js -->
+    </div>
+
+    <p class="hint" id="hint-keyboard">
+      <b>P1</b>: A/D move, W invisible &nbsp;·&nbsp;
+      <b>P2</b>: &larr;/&rarr; move, &uarr; invisible &nbsp;·&nbsp;
+      <b>R</b> restart &nbsp;·&nbsp; <b>Space</b> pause
+    </p>
+    <p class="hint" id="hint-touch" hidden>
+      Tap <b>&#9664;</b> / <b>&#9654;</b> to move, <b>INVIS</b> to phase through.
+      Tap <b>TILT</b> to steer by tilting your phone.
+      Touch supports <b>vs AI</b> only &mdash; 2-player needs a keyboard.
+    </p>
+
+    <div class="touch-controls" id="touch-controls">
+      <button class="tc-btn" id="tc-left" aria-label="move left">&#9664;</button>
+      <button class="tc-btn invis" id="tc-invis" aria-label="invisible">INVIS</button>
+      <button class="tc-btn" id="tc-right" aria-label="move right">&#9654;</button>
+      <button class="tc-btn tilt" id="tc-tilt" aria-label="toggle tilt">TILT</button>
+    </div>
+  </div>
+  <script src="game.js"></script>
+</body>
+</html>

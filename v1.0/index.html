@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+  <title>balance</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div class="container">
+    <div class="header">
+      <h1>balance</h1>
+      <div class="scores">
+        <div class="score-box">
+          <span class="label">P1</span>
+          <span id="p1-status">ready</span>
+        </div>
+        <div class="score-box">
+          <span class="label">P2</span>
+          <span id="p2-status">ready</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="intro">
+      <p class="tagline">Stay on the bar. Push the other off. <b>Gravity</b> does the rest.</p>
+      <button id="new-game" class="btn">New Game</button>
+    </div>
+
+    <div class="stage" id="stage">
+      <canvas id="game" width="720" height="480"></canvas>
+      <!-- overlay (start / pause / win / lose) is injected here by game.js -->
+    </div>
+
+    <p class="hint">
+      <b>P1</b>: A/D move, W invisible &nbsp;·&nbsp;
+      <b>P2</b>: &larr;/&rarr; move, &uarr; invisible &nbsp;·&nbsp;
+      <b>R</b> restart &nbsp;·&nbsp; <b>Space</b> pause
+    </p>
+  </div>
+  <script src="game.js"></script>
+</body>
+</html>

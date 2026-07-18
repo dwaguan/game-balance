@@ -1,0 +1,134 @@
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+html, body {
+  height: 100%;
+  font-family: "Clear Sans", "Helvetica Neue", Arial, sans-serif;
+  background: #faf8ef;
+  color: #776e65;
+  -webkit-tap-highlight-color: transparent;
+  user-select: none;
+}
+
+.container {
+  max-width: 760px;
+  margin: 0 auto;
+  padding: 16px;
+}
+
+.header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 12px;
+}
+
+h1 {
+  font-size: 48px;
+  font-weight: 800;
+  color: #776e65;
+  line-height: 1;
+  letter-spacing: -1px;
+}
+
+.scores { display: flex; gap: 8px; }
+
+.score-box {
+  background: #bbada0;
+  border-radius: 6px;
+  padding: 8px 16px;
+  min-width: 92px;
+  text-align: center;
+  color: #fff;
+  display: flex;
+  flex-direction: column;
+}
+
+.score-box .label {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 1px;
+  color: #eee4da;
+}
+
+.score-box span:last-child {
+  font-size: 15px;
+  font-weight: 800;
+}
+
+.score-box.p1 { background: #8f7a66; }
+.score-box.p2 { background: #6c8a96; }
+.score-box.out span:last-child { color: #f67c5f; }
+
+.intro {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 12px;
+  gap: 12px;
+}
+
+.tagline { font-size: 15px; }
+
+.btn {
+  background: #8f7a66;
+  color: #f9f6f2;
+  border: none;
+  border-radius: 6px;
+  padding: 10px 18px;
+  font-size: 14px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: background .15s;
+}
+.btn:hover { background: #9f8b77; }
+.btn.secondary { background: #bbada0; }
+.btn.secondary:hover { background: #c9bcb0; }
+
+.stage {
+  position: relative;
+  background: #bbada0;
+  border-radius: 8px;
+  padding: 12px;
+  touch-action: none;
+}
+
+#game {
+  display: block;
+  width: 100%;
+  height: auto;
+  aspect-ratio: 3 / 2;
+  border-radius: 4px;
+  background: #eee4da;
+}
+
+.hint {
+  margin-top: 14px;
+  font-size: 12.5px;
+  text-align: center;
+  color: #8f7a66;
+  line-height: 1.6;
+}
+
+/* Overlay for start / pause / win / lose */
+.overlay {
+  position: absolute;
+  inset: 0;
+  background: rgba(238, 228, 218, 0.86);
+  border-radius: 8px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 14px;
+  z-index: 10;
+  animation: fade .25s ease;
+  padding: 20px;
+  text-align: center;
+}
+.overlay h2 { font-size: 36px; font-weight: 800; color: #776e65; }
+.overlay.win h2 { color: #edc22e; }
+.overlay.lose h2 { color: #f67c5f; }
+.overlay p { font-size: 14px; color: #8f7a66; max-width: 420px; line-height: 1.5; }
+.overlay .actions { display: flex; gap: 10px; flex-wrap: wrap; justify-content: center; }
+
+@keyframes fade { from { opacity: 0; } to { opacity: 1; } }
