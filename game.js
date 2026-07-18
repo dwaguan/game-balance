@@ -26,15 +26,21 @@
   const p2StatusEl = document.getElementById("p2-status");
 
   // ---- world constants (SI-ish, tuned for fun) ----
-  const G = 9.81;                 // gravity m/s^2
+  // Gravity is tuned below real-world 9.81 AND below player accel (4.5), so
+  // a > g: a player can climb back from any tilt < 90° (no slow death at the
+  // edge). Gentler gravity also makes the bar feel calmer. The decaying bar
+  // mass is the match terminator.
+  const G = 4.0;                  // gravity m/s^2 (tuned; < accel 4.5, < real 9.81)
   const PIVOT = { x: 360, y: 260 }; // pivot in canvas px (set on resize)
   const PX_PER_M = 70;            // world->canvas scale
   const BALL_R = 0.42;            // ball radius (m)
 
-  // Bar half-length depends on mode. Longer bars (both modes) give positional
-  // play room — park at an end and let your weight tip the bar to drag the
-  // opponent downhill. Skill mode is longer still to fit skill boxes.
-  function barHalf() { return skillMode ? 5.5 : 3.7; }
+  // Bar half-length depends on mode. Normal mode is tuned longer than the
+  // original 3.0 so positional play has room; skill mode longer still to fit
+  // skill boxes. Values chosen so the bar fills most of the 720px logical
+  // field (4.5*70=630px, 5.0*70=700px) — visibly long without clipping when
+  // tilted (horizontal extent shrinks by cos(theta)).
+  function barHalf() { return skillMode ? 5.0 : 4.5; }
 
   // ---- tunable balance values ----
   const CFG = {
@@ -42,10 +48,10 @@
     barMassEnd: 4.0,       // final (light) inertia -> twitchy
     barMassHalfTime: 35.0, // seconds to reach midpoint of the decay
     ballMass: 1.0,
-    accel: 13.0,           // player-controlled tangential accel (m/s^2). > g, so
-                           // a player can climb back from any tilt < 90° (no more
-                           // slow death at the edge). Mass decay ends matches.
-    maxSpeed: 10.0,        // cap on ball speed along bar (m/s)
+    accel: 4.5,            // player-controlled tangential accel (m/s^2). Kept at
+                           // the original value; gravity (G) is lowered instead
+                           // so accel > g·sinθ up to ~55° — always recoverable.
+    maxSpeed: 6.0,         // cap on ball speed along bar (m/s)
     maxAngVel: 2.2,        // rad/s cap (keeps sim sane as inertia drops)
     friction: 0.35,        // tangential drag on balls (1/s)
     invisDuration: 1.2,    // s
@@ -55,8 +61,10 @@
     // ---- anti-stall explosion ----
     // When two balls are close, closing, and both slow, kick them apart so the
     // center-buzz (low-speed elastic swaps that never separate) can't persist.
-    explosionRel: 1.0,     // trigger if |relative v| below this (m/s)
-    explosionKick: 3.0,    // outward kick speed (m/s)
+    // Trigger tuned low so it only fires on genuinely slow meetings (gentler
+    // gravity means balls slide slower, ~0.4-0.8 m/s at small tilts).
+    explosionRel: 0.6,     // trigger if |relative v| below this (m/s)
+    explosionKick: 2.0,    // outward kick speed (m/s)
     explosionCd: 0.8,      // per-ball cooldown (s) to prevent machine-gunning
     explosionFlash: 0.18,  // s of visual flash
     // ---- skill-box mode tunables ----

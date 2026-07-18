@@ -42,8 +42,10 @@ just open `index.html`.
   intended difficulty ramp.
 - Balls slide along the bar under gravity's tangential component
   `aₜ = +g·sin(θ)` plus player input, with viscous friction and a speed cap.
-  Player accel (`a ≈ 13 > g`) means you can always climb back from any tilt
-  < 90° — recovery is always possible; mass decay is the match terminator.
+  Gravity is tuned **below** real-world (`g = 4.0 < accel = 4.5`), so `a > g`
+  and a player can always climb back from any tilt < 90° — recovery is always
+  possible; mass decay is the match terminator. Gentler gravity also makes the
+  bar feel calmer.
 - Ball-ball collisions are **elastic, equal-mass** (velocities swap along the
   bar), unless one ball is invisible (phase-through) or the "sticky/inelastic"
   buff is active (velocities average). When two balls close on each other
@@ -92,7 +94,7 @@ Each version is a self-contained snapshot you can play by opening that folder's
 - **v1.2** — language toggle (中文 / EN, defaults to Chinese)
 - **v1.3** — physics fix: correct torque/signs, balls slide downhill
 - **v1.4** — skill-box mode: optional power-up pickups + longer bar
-- **v1.5** — anti-stall + recovery: longer bar (both modes), a > g, explosion *(latest)*
+- **v1.5** — anti-stall + recovery: longer bar (both modes), reduced gravity (a > g), explosion *(latest)*
 
 ## Future dev (not yet implemented)
 
