@@ -6,7 +6,7 @@ slide, and the bar gets lighter over time — so staying on gets harder. Push yo
 opponent off the end, or just outlast them. No build step, no dependencies —
 just open `index.html`.
 
-**▶ Play online:** <https://game-balance.wanggaoyuan94.workers.dev/>
+**▶ Play online:** <https://dwaguan.github.io/game-balance/>
 
 ## How to play
 
