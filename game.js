@@ -67,7 +67,7 @@
     buzzSlowRel: 3.0,      // only counts as stalling if |rel v| below this (m/s)
     buzzTime: 0.7,         // s of sustained proximity to detonate
     buzzBleed: 3.0,        // charge lost per second once separated
-    explosionKick: 2.2,    // outward kick speed (m/s)
+    explosionKick: 4.5,    // outward kick speed (m/s) — a solid launch, ~75% of maxSpeed
     explosionCd: 0.7,      // per-ball cooldown (s) to prevent machine-gunning
     explosionFlash: 0.20,  // s of visual flash
     // ---- skill-box mode tunables ----
