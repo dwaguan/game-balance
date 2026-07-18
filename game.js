@@ -42,29 +42,34 @@
 
   // ---- tunable balance values ----
   const CFG = {
-    barMassStart: 60.0,    // kg-equivalent; high inertia early -> slow tilt
-    barMassEnd: 4.0,       // final (light) inertia -> twitchy
-    barMassHalfTime: 35.0, // seconds to reach midpoint of the decay
+    barMassStart: 30.0,    // kg-equivalent; lighter than v1.4 so ball weight
+                           // actually tips the bar (was 60 -> barely moved).
+    barMassEnd: 2.5,       // final (light) inertia -> twitchy late game
+    barMassHalfTime: 25.0, // seconds to reach midpoint of the decay (was 35)
     ballMass: 1.0,
     accel: 4.5,            // player-controlled tangential accel (m/s^2). Kept at
                            // the original value; gravity (G) is lowered instead
                            // so accel > g·sinθ up to ~55° — always recoverable.
     maxSpeed: 6.0,         // cap on ball speed along bar (m/s)
-    maxAngVel: 2.2,        // rad/s cap (keeps sim sane as inertia drops)
+    maxAngVel: 2.6,        // rad/s cap (keeps sim sane as inertia drops)
     friction: 0.35,        // tangential drag on balls (1/s)
     invisDuration: 1.2,    // s
     invisCooldown: 6.0,    // s
     matchTime: 90.0,       // s — by here the bar is at minimum mass
     subSteps: 6,           // physics sub-steps per frame
-    // ---- anti-stall explosion ----
-    // When two balls are close, closing, and both slow, kick them apart so the
-    // center-buzz (low-speed elastic swaps that never separate) can't persist.
-    // Trigger tuned low so it only fires on genuinely slow meetings (gentler
-    // gravity means balls slide slower, ~0.4-0.8 m/s at small tilts).
-    explosionRel: 0.6,     // trigger if |relative v| below this (m/s)
-    explosionKick: 2.0,    // outward kick speed (m/s)
-    explosionCd: 0.8,      // per-ball cooldown (s) to prevent machine-gunning
-    explosionFlash: 0.18,  // s of visual flash
+    // ---- anti-stall explosion (with charge-up) ----
+    // When two balls are close, closing, and slow, they enter a CHARGE phase
+    // (a growing energy spark between them) so players see the stall building.
+    // If they stay stalled through the charge, they explode apart. Separating
+    // or speeding up bleeds the charge. Tuned to trigger readily so stalls
+    // don't linger.
+    explosionProx: 0.62,   // charge starts when gap below this (m) — ~1.5x ball diameter
+    explosionRel: 1.2,     // "slow" if |relative v| below this (m/s)
+    explosionCharge: 0.45, // s of sustained stall to detonate
+    explosionBleed: 2.5,   // charge lost per second when not stalling
+    explosionKick: 2.2,    // outward kick speed (m/s)
+    explosionCd: 0.7,      // per-ball cooldown (s) to prevent machine-gunning
+    explosionFlash: 0.20,  // s of visual flash
     // ---- skill-box mode tunables ----
     skill: {
       spawnDelay: 2.0,     // s after collect/despawn before next box
@@ -93,6 +98,7 @@
     title:        { zh: "平衡",        en: "balance" },
     p1Label:      { zh: "玩家1",       en: "P1" },
     p2Label:      { zh: "玩家2",       en: "P2" },
+    youLabel:     { zh: "你",          en: "You" },
     ready:        { zh: "就绪",        en: "ready" },
     ai:           { zh: "电脑",        en: "AI" },
     out:          { zh: "掉落",        en: "OUT" },
@@ -162,12 +168,19 @@
   // Update static (HTML) strings to the current language. Dynamic/canvas text
   // reads t() directly at render time, so it always tracks lang.
   const langBtn = document.getElementById("lang-btn");
+  // Label for a ball: in vs-AI mode P1 is "You" and P2 is "AI" (no numbering);
+  // in 2-player mode both are numbered.
+  function ballLabel(b) {
+    if (vsAI) return b.idx === 0 ? t("youLabel") : t("ai");
+    return b.idx === 0 ? t("p1Label") : t("p2Label");
+  }
+
   function applyStaticText() {
     document.documentElement.lang = lang === "zh" ? "zh-CN" : "en";
     document.title = t("title");
     document.querySelector("h1").textContent = t("title");
-    document.querySelector(".score-box.p1 .label").textContent = t("p1Label");
-    document.querySelector(".score-box.p2 .label").textContent = t("p2Label");
+    document.querySelector(".score-box.p1 .label").textContent = vsAI ? t("youLabel") : t("p1Label");
+    document.querySelector(".score-box.p2 .label").textContent = vsAI ? t("ai") : t("p2Label");
     document.getElementById("new-game").textContent = t("newGame");
     document.querySelector(".tagline").innerHTML = t("tagline");
     document.getElementById("hint-keyboard").innerHTML = t("hintKb");
@@ -204,6 +217,8 @@
   // skill box: { s, type, bornAt } or null. type in "mass"|"accel"|"cd"|"inelastic".
   let skillBox = null;
   let skillCooldown = 0;   // s until next box may spawn
+  // buzz charge: builds while both balls are close+closing+slow; detonates at full.
+  let buzz = 0;            // 0..1 charge fraction
 
   function makeBall(idx) {
     return {
@@ -310,6 +325,7 @@
     winner = null;
     skillBox = null;
     skillCooldown = skillMode ? 1.0 : 0;   // first box appears shortly after start
+    buzz = 0;
   }
 
   // ---- bar mass decay: exponential approach to barMassEnd ----
@@ -380,46 +396,54 @@
     // 4. Skill box pickup (proximity; boxes don't block or weigh the bar).
     checkSkillPickup();
 
-    // 5. Ball-ball collision (1D along the bar).
+    // 5. Buzz charge + ball-ball collision (1D along the bar).
     const [a, c] = balls;
-    if (!a.out && !c.out) {
+    if (!a.out && !c.out && !(a.invis.active || c.invis.active)) {
       const gap = Math.abs(c.s - a.s);
+      const rel = c.v - a.v;
+      const sign = c.s >= a.s ? 1 : -1;
+      const closing = (sign > 0 && rel < 0) || (sign < 0 && rel > 0);
+      const slow = Math.abs(rel) < CFG.explosionRel;
+      const near = gap < CFG.explosionProx;
+
+      // Charge builds while close+closing+slow (a stall); bleeds otherwise.
+      if (near && closing && slow) {
+        buzz += dt / CFG.explosionCharge;
+      } else {
+        buzz = Math.max(0, buzz - CFG.explosionBleed * dt);
+      }
+      if (buzz > 1) buzz = 1;
+
       const minSep = 2 * BALL_R;
       if (gap < minSep) {
-        // if either is invisible, pass through (no collision)
-        if (a.invis.active || c.invis.active) {
-          // no-op: they overlap briefly; whichever is invisible phases through
-        } else {
-          const sign = c.s >= a.s ? 1 : -1;
-          // resolve overlap
-          const overlap = minSep - gap;
-          a.s -= sign * overlap / 2;
-          c.s += sign * overlap / 2;
+        // resolve overlap
+        const overlap = minSep - gap;
+        a.s -= sign * overlap / 2;
+        c.s += sign * overlap / 2;
 
-          // anti-stall explosion: if they're closing slowly, the elastic swap
-          // would just buzz them in place. Kick both apart with stored energy.
-          const rel = c.v - a.v;
-          const closing = (sign > 0 && rel < 0) || (sign < 0 && rel > 0);
-          const slow = Math.abs(rel) < CFG.explosionRel;
-          if (closing && slow && a.expCd <= 0 && c.expCd <= 0) {
-            a.v = -sign * CFG.explosionKick;
-            c.v =  sign * CFG.explosionKick;
-            a.expCd = c.expCd = CFG.explosionCd;
-            a.expFlash = c.expFlash = CFG.explosionFlash;
-          } else if (a.buffs.inelastic || c.buffs.inelastic) {
-            // inelastic: equal mass -> both take the average velocity (momentum
-            // conserved, kinetic energy lost). The skilled ball drags the other.
-            const avg = (a.v + c.v) / 2;
-            a.v = avg;
-            c.v = avg;
-          } else {
-            // elastic 1D collision, equal mass -> swap velocities
-            const va = a.v, vc = c.v;
-            a.v = vc;
-            c.v = va;
-          }
+        if (buzz >= 1 && a.expCd <= 0 && c.expCd <= 0) {
+          // detonate: stored-energy explosion breaks the stall
+          a.v = -sign * CFG.explosionKick;
+          c.v =  sign * CFG.explosionKick;
+          a.expCd = c.expCd = CFG.explosionCd;
+          a.expFlash = c.expFlash = CFG.explosionFlash;
+          buzz = 0;
+        } else if (a.buffs.inelastic || c.buffs.inelastic) {
+          // inelastic: equal mass -> both take the average velocity (momentum
+          // conserved, kinetic energy lost). The skilled ball drags the other.
+          const avg = (a.v + c.v) / 2;
+          a.v = avg;
+          c.v = avg;
+        } else {
+          // elastic 1D collision, equal mass -> swap velocities
+          const va = a.v, vc = c.v;
+          a.v = vc;
+          c.v = va;
         }
       }
+    } else {
+      // one ball out or invisible: charge dissipates
+      buzz = Math.max(0, buzz - CFG.explosionBleed * dt);
     }
 
     elapsed += dt;
@@ -643,7 +667,7 @@
       ctx.font = "bold 14px sans-serif";
       ctx.textAlign = "center";
       ctx.textBaseline = "middle";
-      ctx.fillText(b.idx === 0 ? t("p1Label") : t("p2Label"), p.x, p.y);
+      ctx.fillText(ballLabel(b), p.x, p.y);
 
       // invis cooldown ring
       if (!b.invis.active && b.invis.cd > 0) {
@@ -678,6 +702,26 @@
         ctx.textBaseline = "bottom";
         ctx.fillText(meta.letter + "+", p.x, p.y - rad - 9);
       }
+    }
+
+    // buzz charge: growing energy spark between the two balls (stall warning)
+    if (buzz > 0.02 && !balls[0].out && !balls[1].out &&
+        !(balls[0].invis.active || balls[1].invis.active)) {
+      const pa = worldToCanvas(balls[0].s, bar.theta);
+      const pc = worldToCanvas(balls[1].s, bar.theta);
+      const mx = (pa.x + pc.x) / 2, my = (pa.y + pc.y) / 2;
+      const pulse = 0.7 + 0.3 * Math.sin(elapsed * 18);
+      const r = (4 + buzz * 14) * pulse;
+      const hot = buzz >= 1;
+      ctx.beginPath();
+      ctx.arc(mx, my, r, 0, Math.PI * 2);
+      ctx.fillStyle = hot
+        ? `rgba(246,94,59,${0.5 + 0.4 * pulse})`
+        : `rgba(237,194,46,${0.25 + 0.45 * buzz})`;
+      ctx.fill();
+      ctx.strokeStyle = hot ? "rgba(246,94,59,0.9)" : "rgba(237,194,46,0.7)";
+      ctx.lineWidth = 2;
+      ctx.stroke();
     }
 
     // elapsed / mass HUD on canvas
@@ -833,6 +877,7 @@
     mode = "playing";
     lastTs = 0;
     clearOverlay();
+    applyStaticText();   // refresh scoreboard labels (You/AI vs 玩家1/玩家2)
   }
 
   function togglePause() {
