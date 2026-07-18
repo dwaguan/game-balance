@@ -35,12 +35,10 @@
   const PX_PER_M = 70;            // world->canvas scale
   const BALL_R = 0.42;            // ball radius (m)
 
-  // Bar half-length depends on mode. Normal mode is tuned longer than the
-  // original 3.0 so positional play has room; skill mode longer still to fit
-  // skill boxes. Values chosen so the bar fills most of the 720px logical
-  // field (4.5*70=630px, 5.0*70=700px) — visibly long without clipping when
-  // tilted (horizontal extent shrinks by cos(theta)).
-  function barHalf() { return skillMode ? 5.0 : 4.5; }
+  // Bar half-length depends on mode. Normal is +33% over v1.4 (3.0 -> 4.0) so
+  // the increase is visible; skill stays at v1.4's 4.5 (5.0 clipped the frame
+  // when tilted). 4.0 stays in-bounds to ~57° tilt, 4.5 to ~50°.
+  function barHalf() { return skillMode ? 4.5 : 4.0; }
 
   // ---- tunable balance values ----
   const CFG = {
