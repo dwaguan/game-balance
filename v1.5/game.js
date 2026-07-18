@@ -57,16 +57,16 @@
     invisCooldown: 6.0,    // s
     matchTime: 90.0,       // s — by here the bar is at minimum mass
     subSteps: 6,           // physics sub-steps per frame
-    // ---- anti-stall explosion (with charge-up) ----
-    // When two balls are close, closing, and slow, they enter a CHARGE phase
-    // (a growing energy spark between them) so players see the stall building.
-    // If they stay stalled through the charge, they explode apart. Separating
-    // or speeding up bleeds the charge. Tuned to trigger readily so stalls
-    // don't linger.
-    explosionProx: 0.9,    // charge starts when gap below this (m) — covers contact-buzz
-    explosionRel: 1.2,     // "slow" if |relative v| below this (m/s)
-    explosionCharge: 0.45, // s of sustained stall to detonate
-    explosionBleed: 2.5,   // charge lost per second when not stalling
+    // ---- anti-stall explosion (charge-up) ----
+    // Two balls pressed together (sustained proximity) build a visible charge
+    // spark; if they don't separate within buzzTime, they detonate apart. The
+    // signal is duration-of-proximity (robust to the rapid elastic swaps that
+    // make instantaneous "slow" unreliable), with a low-speed gate so a fast
+    // clean pass doesn't charge.
+    buzzProx: 1.1,         // charge starts when gap below this (m)
+    buzzSlowRel: 3.0,      // only counts as stalling if |rel v| below this (m/s)
+    buzzTime: 0.7,         // s of sustained proximity to detonate
+    buzzBleed: 3.0,        // charge lost per second once separated
     explosionKick: 2.2,    // outward kick speed (m/s)
     explosionCd: 0.7,      // per-ball cooldown (s) to prevent machine-gunning
     explosionFlash: 0.20,  // s of visual flash
@@ -217,8 +217,10 @@
   // skill box: { s, type, bornAt } or null. type in "mass"|"accel"|"cd"|"inelastic".
   let skillBox = null;
   let skillCooldown = 0;   // s until next box may spawn
-  // buzz charge: builds while both balls are close+closing+slow; detonates at full.
-  let buzz = 0;            // 0..1 charge fraction
+  // buzz charge: builds while both balls are in sustained proximity (a stall);
+  // detonates at full. slowContact accumulates time-in-proximity-with-low-rel-v.
+  let buzz = 0;            // 0..1 charge fraction (drives the visible spark)
+  let slowContact = 0;     // s of sustained proximity below the slow gate
 
   function makeBall(idx) {
     return {
@@ -326,6 +328,7 @@
     skillBox = null;
     skillCooldown = skillMode ? 1.0 : 0;   // first box appears shortly after start
     buzz = 0;
+    slowContact = 0;
   }
 
   // ---- bar mass decay: exponential approach to barMassEnd ----
@@ -402,19 +405,22 @@
       const gap = Math.abs(c.s - a.s);
       const rel = c.v - a.v;
       const sign = c.s >= a.s ? 1 : -1;
-      const slow = Math.abs(rel) < CFG.explosionRel;
-      const near = gap < CFG.explosionProx;
+      const near = gap < CFG.buzzProx;
+      const slow = Math.abs(rel) < CFG.buzzSlowRel;
 
-      // Charge builds while close+slow (a contact-buzz stall — they're touching
-      // and trading rapid swaps, not meaningfully separating); bleeds otherwise.
-      // (We don't require "closing": once in contact they're not closing, they're
-      // buzzing — and that's exactly the stall we want to break.)
+      // Charge = sustained proximity. slowContact accumulates while near+slow
+      // (a stall: pressed together, not flying past); resets on separation.
+      // buzz tracks it as a 0..1 fraction so the spark is visible while building.
       if (near && slow) {
-        buzz += dt / CFG.explosionCharge;
-      } else {
-        buzz = Math.max(0, buzz - CFG.explosionBleed * dt);
+        slowContact += dt;
+      } else if (!near) {
+        slowContact = 0;
       }
-      if (buzz > 1) buzz = 1;
+      if (near) {
+        buzz = clamp(slowContact / CFG.buzzTime, 0, 1);
+      } else {
+        buzz = Math.max(0, buzz - CFG.buzzBleed * dt);
+      }
 
       const minSep = 2 * BALL_R;
       if (gap < minSep) {
@@ -430,6 +436,7 @@
           a.expCd = c.expCd = CFG.explosionCd;
           a.expFlash = c.expFlash = CFG.explosionFlash;
           buzz = 0;
+          slowContact = 0;
         } else if (a.buffs.inelastic || c.buffs.inelastic) {
           // inelastic: equal mass -> both take the average velocity (momentum
           // conserved, kinetic energy lost). The skilled ball drags the other.
@@ -445,7 +452,8 @@
       }
     } else {
       // one ball out or invisible: charge dissipates
-      buzz = Math.max(0, buzz - CFG.explosionBleed * dt);
+      buzz = Math.max(0, buzz - CFG.buzzBleed * dt);
+      slowContact = 0;
     }
 
     elapsed += dt;
@@ -707,22 +715,30 @@
     }
 
     // buzz charge: growing energy spark between the two balls (stall warning)
-    if (buzz > 0.02 && !balls[0].out && !balls[1].out &&
+    if (buzz > 0.01 && !balls[0].out && !balls[1].out &&
         !(balls[0].invis.active || balls[1].invis.active)) {
       const pa = worldToCanvas(balls[0].s, bar.theta);
       const pc = worldToCanvas(balls[1].s, bar.theta);
       const mx = (pa.x + pc.x) / 2, my = (pa.y + pc.y) / 2;
       const pulse = 0.7 + 0.3 * Math.sin(elapsed * 18);
-      const r = (4 + buzz * 14) * pulse;
+      const r = (5 + buzz * 15) * pulse;
       const hot = buzz >= 1;
+      // glow orb
       ctx.beginPath();
       ctx.arc(mx, my, r, 0, Math.PI * 2);
       ctx.fillStyle = hot
         ? `rgba(246,94,59,${0.5 + 0.4 * pulse})`
-        : `rgba(237,194,46,${0.25 + 0.45 * buzz})`;
+        : `rgba(237,194,46,${0.25 + 0.5 * buzz})`;
       ctx.fill();
-      ctx.strokeStyle = hot ? "rgba(246,94,59,0.9)" : "rgba(237,194,46,0.7)";
+      ctx.strokeStyle = hot ? "rgba(246,94,59,0.9)" : "rgba(237,194,46,0.8)";
       ctx.lineWidth = 2;
+      ctx.stroke();
+      // charge bar (arc) above the orb so the buildup is unmistakable
+      const barR = r + 6;
+      ctx.beginPath();
+      ctx.arc(mx, my, barR, -Math.PI / 2, -Math.PI / 2 + buzz * Math.PI * 2);
+      ctx.strokeStyle = hot ? "rgba(246,94,59,1)" : "rgba(237,194,46,0.95)";
+      ctx.lineWidth = 3;
       ctx.stroke();
     }
 
